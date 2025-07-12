@@ -1,0 +1,8 @@
+# Sensitive and config files
+.env
+server/firebase-service-account.json
+
+# Dependency folders
+node_modules/
+server/node_modules/
+twiller/node_modules/

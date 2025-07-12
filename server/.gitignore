@@ -1,0 +1,4 @@
+# Ignore sensitive files
+.env
+server/.env
+server/firebase-service-account.json
