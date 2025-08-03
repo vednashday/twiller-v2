@@ -183,20 +183,40 @@ async function run() {
 
     // Update User
     app.patch("/userupdate/:email", async (req, res) => {
-      const email = decodeURIComponent(req.params.email);
-      const { username } = req.body;
+  try {
+    const email = decodeURIComponent(req.params.email);
+    const { username, phone } = req.body;
 
-      if (username) {
-        const taken = await usercollection.findOne({ username });
-        if (taken && taken.email !== email) {
-          return res.status(409).json({ error: "Username already taken" });
-        }
+    // Check for username uniqueness
+    if (username) {
+      const taken = await usercollection.findOne({ username });
+      if (taken && taken.email !== email) {
+        return res.status(409).json({ error: "Username already taken" });
       }
+    }
 
-      const updateDoc = { $set: req.body };
-      const result = await usercollection.updateOne({ email }, updateDoc, { upsert: true });
-      res.send(result);
-    });
+    // Add server-side validation for the phone number
+    if (phone) {
+      const phoneRegex = /^\+\d{1,15}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ error: "Invalid phone number format" });
+      }
+    }
+    
+    // The request body contains all the fields to be updated
+    const updateDoc = { $set: req.body };
+    const result = await usercollection.updateOne({ email }, updateDoc, { upsert: true });
+
+    if (result.matchedCount === 0 && result.upsertedCount === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.send(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong on the server." });
+  }
+});
 
     // Send OTP for Audio Upload
     app.post("/send-audio-otp", async (req, res) => {
@@ -308,6 +328,15 @@ async function run() {
       const { otp } = req.body;
       const email = req.user.email;
 
+       const languageNames = {
+        "en": "English",
+        "es": "Spanish",
+        "hi": "Hindi",
+        "pt": "Portuguese",
+        "zh": "Chinese",
+        "fr": "French",
+    };
+
       if (!otp) {
         return res.status(400).json({ message: "OTP is required" });
       }
@@ -332,8 +361,9 @@ async function run() {
       }
 
       await langOtpCollection.deleteOne({ email });
+      const fullLanguageName = languageNames[otpDoc.language] || otpDoc.language;
 
-      res.status(200).json({ message: `Language updated to ${otpDoc.language} successfully` });
+      res.status(200).json({ message: `Language updated to ${fullLanguageName} successfully` });
     });
     //Forgot Password
     app.post("/forgot-password", async (req, res) => {
